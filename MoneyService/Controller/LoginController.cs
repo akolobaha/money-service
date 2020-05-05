@@ -1,20 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using MoneyService.Model;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
 
 namespace MoneyService.Controller
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class LoginController : ControllerBase
     {
@@ -34,7 +33,7 @@ namespace MoneyService.Controller
 
             var user = AuthenticationUser(login);
 
-            if(user != null)
+            if (user != null)
             {
                 var tokenStr = GenerateJSONWebToken(user);
                 response = Ok(new { token = tokenStr });
@@ -49,7 +48,7 @@ namespace MoneyService.Controller
             UserModel user = null;
             if (login.UserName == "user" && login.Password == "pas")
             {
-                user = new UserModel { UserName = "user", EmailAddress = "user@mail.ru", Password = "pas" };
+                user = new UserModel { UserName = "user",  Password = "pas" };
             }
             return user;
         }
@@ -72,7 +71,7 @@ namespace MoneyService.Controller
                 claims,
                 expires: DateTime.Now.AddMinutes(120),
                 signingCredentials: credentials);
-            
+
             var encodetoken = new JwtSecurityTokenHandler().WriteToken(token);
             return encodetoken;
         }
