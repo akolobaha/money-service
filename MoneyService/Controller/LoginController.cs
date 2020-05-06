@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MoneyService.DB;
 using MoneyService.Model;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,7 @@ namespace MoneyService.Controller
 {
     [Route("[controller]")]
     [ApiController]
+
     public class LoginController : ControllerBase
     {
         private IConfiguration _config;
@@ -24,10 +26,10 @@ namespace MoneyService.Controller
         }
 
         [HttpGet]
-        public IActionResult Login(string username, string pass)
+        public IActionResult Login(string useremail, string pass)
         {
             UserModel login = new UserModel();
-            login.UserName = username;
+            login.EmailAddress = useremail;
             login.Password = pass;
             IActionResult response = Unauthorized();
 
@@ -45,12 +47,30 @@ namespace MoneyService.Controller
         // Hard coded user
         private UserModel AuthenticationUser(UserModel login)
         {
-            UserModel user = null;
+
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                UserModel user = null;
+                var users = db.Users.ToList();
+               
+                foreach (UserModel u in users)
+                {
+                    System.Diagnostics.Debug.WriteLine($"DB: {u.EmailAddress}.{u.Password}");
+                    System.Diagnostics.Debug.WriteLine($"Object: {login.EmailAddress}.{login.Password}");
+                    if (u.EmailAddress == login.EmailAddress && u.Password == login.Password)
+                    {
+                        user = new UserModel { EmailAddress = u.EmailAddress  };
+                    }
+                }
+                return user;
+            }
+            
+            /*UserModel user = null;
             if (login.UserName == "user" && login.Password == "pas")
             {
                 user = new UserModel { UserName = "user",  Password = "pas" };
             }
-            return user;
+            return user;*/
         }
 
         // Генерируем токен
@@ -61,8 +81,8 @@ namespace MoneyService.Controller
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, userinfo.UserName),
-                new Claim(JwtRegisteredClaimNames.Email,userinfo.EmailAddress),
+                new Claim(JwtRegisteredClaimNames.Sub, userinfo.EmailAddress),
+                /*new Claim(JwtRegisteredClaimNames.Email,userinfo.EmailAddress),*/
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
             var token = new JwtSecurityToken(
