@@ -7,6 +7,7 @@ using MoneyService.DB;
 using MoneyService.Model;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
@@ -50,7 +51,9 @@ namespace MoneyService.Controller
 
             using (ApplicationContext db = new ApplicationContext())
             {
+                
                 UserModel user = null;
+                
                 var users = db.Users.ToList();
                
                 foreach (UserModel u in users)

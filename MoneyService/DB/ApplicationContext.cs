@@ -6,6 +6,7 @@ namespace MoneyService.DB
     public class ApplicationContext : DbContext
     {
         public DbSet<UserModel> Users { get; set; }
+        public DbSet<AccountModel> Account { get; set; }
 
         /*public ApplicationContext()
         {
