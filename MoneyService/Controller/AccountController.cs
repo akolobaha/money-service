@@ -16,6 +16,8 @@ namespace MoneyService.Controller
     public class AccountController : ControllerBase
     {
 
+
+
         [Authorize]
         public string Index ()
         {
@@ -44,7 +46,7 @@ namespace MoneyService.Controller
                     if (u.EmailAddress == userLogin)
                         userId = u.UserId;
                 }
-
+                // Создать запись в бд
                 if (userId != 0)
                 {
                     AccountModel account = new AccountModel { AccountOwnersId = userId };
@@ -54,19 +56,95 @@ namespace MoneyService.Controller
                     return "Successfuly created";
                 }
 
-            }
-
-            /*using (ApplicationContext db = new ApplicationContext())
-            {
-                
-            }*/
-
-            // Создать запись в бд
-              
-
+            }        
             return "Error";
         }
 
-        
+        [Authorize]
+        [HttpGet("top-up-balance")]
+        public string TopUpBalance(long accnum, int amount)
+        {
+            var identity = HttpContext.User.Identity as ClaimsIdentity;
+            IList<Claim> claim = identity.Claims.ToList();
+            var userLogin = claim[0].Value;
+
+            int userId = 0;
+
+            // Получить id из логина
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                var users = db.Users.ToList();
+                foreach (UserModel u in users)
+                {
+                    if (u.EmailAddress == userLogin)
+                        userId = u.UserId;
+                }
+
+                if (userId != 0)
+                {
+                    var accounts = db.Account.ToList();
+                    foreach(AccountModel a in accounts)
+                    {
+                        if (a.AccountNumber == accnum && a.AccountOwnersId == userId)
+                        {
+                            a.AccountBalance += amount;
+                            db.SaveChanges();
+                            return ($"Баланс счета {a.AccountNumber} пополнен на {amount}");
+
+                        }
+                            
+                    }
+                    
+                }
+            }
+
+            return ("Ошибка. Баланс не был пополнен");
+        }
+
+        [Authorize]
+        [HttpGet("transfer")]
+        public string Transfer(long accnumA, long accnumB, int amount)
+        {
+            var identity = HttpContext.User.Identity as ClaimsIdentity;
+            IList<Claim> claim = identity.Claims.ToList();
+            var userLogin = claim[0].Value;
+
+            int userId = 0;
+
+            // Получить id из логина
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                var users = db.Users.ToList();
+                foreach (UserModel u in users)
+                {
+                    if (u.EmailAddress == userLogin)
+                        userId = u.UserId;
+                }
+
+                if (userId != 0)
+                {
+                    var accounts = db.Account.ToList();
+                    foreach (AccountModel a in accounts)
+                    {
+                        if ((a.AccountNumber == accnumA && a.AccountOwnersId == userId) && a.AccountBalance >= amount)
+                            foreach (AccountModel b in accounts)
+                            {
+                                if (b.AccountNumber == accnumB)
+                                {
+                                    a.AccountBalance -= amount;
+                                    b.AccountBalance += amount;
+                                    db.SaveChanges();
+                                    return ("Перевод выполнен успешно");
+                                }
+                            }
+                    }
+                }
+                else
+                    return ("Пользователь не найден");
+            }
+
+            return ("Ошибка. Перевод не выполнен.");
+        }
+
     }
 }

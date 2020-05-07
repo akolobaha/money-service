@@ -17,4 +17,6 @@ namespace MoneyService.DB
             optionsBuilder.UseNpgsql("Host=localhost;Port=5433;Database=test;Username=postgres;Password=515986");
         }
     }
+
+
 }
