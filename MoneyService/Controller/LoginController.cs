@@ -72,7 +72,7 @@ namespace MoneyService.Controller
             }
 
         }*/
-
+        // Проверяем пользователя
         public bool AuthenticationUser(string username, string password)
         {
             string sql = $"SELECT * FROM \"Users\" WHERE \"Username\"=\'{username}\';";
@@ -81,7 +81,6 @@ namespace MoneyService.Controller
             {
                 connection.Open();
                 var usrDb = connection.Query<UserDb>(sql).ToList();
-                System.Diagnostics.Debug.WriteLine(usrDb[0]);
 
                 UserService check = new UserService();
                 var chk = check.IsValidUser(password, usrDb[0].Salt, usrDb[0].Password);

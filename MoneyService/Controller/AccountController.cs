@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using MoneyService.BuisnessLogic.Auth;
 using MoneyService.DB;
 using MoneyService.Model;
+using Npgsql;
 
 namespace MoneyService.Controller
 {
@@ -15,7 +19,11 @@ namespace MoneyService.Controller
     [ApiController]
     public class AccountController : ControllerBase
     {
-
+        private IConfiguration _config;
+        public AccountController(IConfiguration config)
+        {
+            _config = config;
+        }
 
 
         [Authorize]
@@ -31,19 +39,17 @@ namespace MoneyService.Controller
         [HttpPost("Create")]
         public string Create ()
         {
-            var identity = HttpContext.User.Identity as ClaimsIdentity;
-            IList<Claim> claim = identity.Claims.ToList();
-            var userLogin = claim[0].Value;
-            int userId = 0;
+            string username = GetLoginByToken();
+            int userId = GetUserIdByLogin(username);
 
             // Получить id из логина
-            using (ApplicationContext db = new ApplicationContext())
+         /*   using (ApplicationContext db = new ApplicationContext())
             {
                 var users = db.Users.ToList();
-                System.Diagnostics.Debug.WriteLine(users[0].UserName);
+                System.Diagnostics.Debug.WriteLine(users[0].Username);
                 foreach (UserModel u in users)
                 {
-                    if (u.EmailAddress == userLogin)
+                    if (u.Username == userLogin)
                         userId = u.UserId;
                 }
                 // Создать запись в бд
@@ -56,9 +62,52 @@ namespace MoneyService.Controller
                     return "Successfuly created";
                 }
 
-            }        
-            return "Error";
+            }*/
+
+            //INSERT INTO "Account"("AccountOwnersId") VALUES(57);
+            try
+            {
+                using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+                {
+                    string sql = $"INSERT INTO \"Account\" (\"AccountOwnersId\") VALUES ({userId});";
+                    connection.Open();
+                    connection.Execute(sql);
+                }
+                return username + "|" + userId + "| счет успешно открыт";
+            }
+            
+            catch
+            {
+                return "Ошибка добавления в базу";
+            }
+
+
+
+
+
         }
+
+        [Authorize]
+        public string GetLoginByToken()
+        {
+            var identity = HttpContext.User.Identity as ClaimsIdentity;
+            IList<Claim> claim = identity.Claims.ToList();
+            var username = claim[0].Value;
+            return username;
+        }
+        public int GetUserIdByLogin(string username)
+        {
+            using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+            {
+                string sql = $"SELECT * FROM \"Users\" WHERE \"Username\" = '{username}';";
+                connection.Open();
+                var user = connection.Query<UserDb>(sql).ToList();
+                int userId = Int32.Parse(user[0].UserId);
+                return userId; 
+            }
+        }
+
+
 
         [Authorize]
         [HttpGet("top-up-balance")]
@@ -66,7 +115,7 @@ namespace MoneyService.Controller
         {
             var identity = HttpContext.User.Identity as ClaimsIdentity;
             IList<Claim> claim = identity.Claims.ToList();
-            var userLogin = claim[0].Value;
+            var username = claim[0].Value;
 
             int userId = 0;
 
@@ -76,7 +125,7 @@ namespace MoneyService.Controller
                 var users = db.Users.ToList();
                 foreach (UserModel u in users)
                 {
-                    if (u.EmailAddress == userLogin)
+                    if (u.Username == username)
                         userId = u.UserId;
                 }
 
@@ -117,7 +166,7 @@ namespace MoneyService.Controller
                 var users = db.Users.ToList();
                 foreach (UserModel u in users)
                 {
-                    if (u.EmailAddress == userLogin)
+                    if (u.Username == userLogin)
                         userId = u.UserId;
                 }
 
