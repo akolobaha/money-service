@@ -45,7 +45,6 @@ namespace MoneyService.Controller
             return response;
         }
 
-        // Hard coded user
         private UserModel AuthenticationUser(UserModel login)
         {
 
@@ -68,12 +67,6 @@ namespace MoneyService.Controller
                 return user;
             }
             
-            /*UserModel user = null;
-            if (login.UserName == "user" && login.Password == "pas")
-            {
-                user = new UserModel { UserName = "user",  Password = "pas" };
-            }
-            return user;*/
         }
 
         // Генерируем токен
