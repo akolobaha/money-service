@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MoneyService.BuisnessLogic.Auth;
 using MoneyService.DB;
 using MoneyService.Model;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -27,17 +30,18 @@ namespace MoneyService.Controller
         }
 
         [HttpGet]
-        public IActionResult Login(string useremail, string pass)
+        public IActionResult Login(string username, string password)
         {
-            UserModel login = new UserModel();
-            login.EmailAddress = useremail;
-            login.Password = pass;
+            /*UserModel login = new UserModel();
+            login.EmailAddress = username;
+            login.Password = password;*/
             IActionResult response = Unauthorized();
 
-            var user = AuthenticationUser(login);
+            var ValidUser = AuthenticationUser(username, password);
 
-            if (user != null)
+            if (ValidUser)
             {
+                User user = new User(username, password);
                 var tokenStr = GenerateJSONWebToken(user);
                 response = Ok(new { token = tokenStr });
             }
@@ -45,39 +49,56 @@ namespace MoneyService.Controller
             return response;
         }
 
-        private UserModel AuthenticationUser(UserModel login)
+       /* private UserModel AuthenticationUser(UserModel login)
         {
 
             using (ApplicationContext db = new ApplicationContext())
             {
-                
+
                 UserModel user = null;
-                
+
                 var users = db.Users.ToList();
-               
+
                 foreach (UserModel u in users)
                 {
                     System.Diagnostics.Debug.WriteLine($"DB: {u.EmailAddress}.{u.Password}");
                     System.Diagnostics.Debug.WriteLine($"Object: {login.EmailAddress}.{login.Password}");
                     if (u.EmailAddress == login.EmailAddress && u.Password == login.Password)
                     {
-                        user = new UserModel { EmailAddress = u.EmailAddress  };
+                        user = new UserModel { EmailAddress = u.EmailAddress };
                     }
                 }
                 return user;
             }
-            
+
+        }*/
+
+        public bool AuthenticationUser(string username, string password)
+        {
+            string sql = $"SELECT * FROM \"Users\" WHERE \"Username\"=\'{username}\';";
+
+            using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+            {
+                connection.Open();
+                var usrDb = connection.Query<UserDb>(sql).ToList();
+                System.Diagnostics.Debug.WriteLine(usrDb[0]);
+
+                UserService check = new UserService();
+                var chk = check.IsValidUser(password, usrDb[0].Salt, usrDb[0].Password);
+
+                return chk;
+            }
         }
 
         // Генерируем токен
-        private string GenerateJSONWebToken(UserModel userinfo)
+        private string GenerateJSONWebToken(User userinfo)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, userinfo.EmailAddress),
+                new Claim(JwtRegisteredClaimNames.Sub, userinfo.Username),
                 /*new Claim(JwtRegisteredClaimNames.Email,userinfo.EmailAddress),*/
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
@@ -93,7 +114,7 @@ namespace MoneyService.Controller
         }
 
 
-
+        // Кто я?
         [Authorize]
         [HttpPost("Post")]
         public string Post()
