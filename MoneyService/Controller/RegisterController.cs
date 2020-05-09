@@ -60,12 +60,13 @@ namespace MoneyService.Controller
 
 
         [HttpGet("check")]
-        public void CheckUser(string email, string password)
+        public bool CheckUser(string username, string password)
         {
-            User user = new User(email, password);
+            //User user = new User(email, password);
 
             // connection.Query<Customer>("Select * FROM CUSTOMERS WHERE CustomerName = 'Mark'").ToList();
-            string sql = "SELECT * FROM public.\"Users\"";
+            string sql = $"SELECT * FROM \"Users\" WHERE \"Username\"=\'{username}\';";
+            //System.Diagnostics.Debug.WriteLine(sql);
 
             using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
             {
@@ -73,16 +74,21 @@ namespace MoneyService.Controller
                 //var customer = connection.Query<User>(sql);
                 //var customer = connection.QueryMultiple(sql).Read<string>().FirstOrDefault(); // прочитал первое значение строки
                 //var customer = connection.QueryMultiple(sql).Read<string>();// прочитал 1е значине
-                var customer = connection.Query<UserDb>(sql).ToList();
-                foreach(UserDb c in customer)
-                {
-                    System.Diagnostics.Debug.WriteLine(c.UserId);
-                    System.Diagnostics.Debug.WriteLine(c.Username);
-                    System.Diagnostics.Debug.WriteLine(c.Password);
-                    System.Diagnostics.Debug.WriteLine(c.ModerationCompleted);
-                    System.Diagnostics.Debug.WriteLine(c.Salt);
-                }
-                
+                var usrDb = connection.Query<UserDb>(sql).ToList();
+                System.Diagnostics.Debug.WriteLine(usrDb[0]);
+                    
+                UserService check = new UserService();
+                var chk = check.IsValidUser(password, usrDb[0].Salt, usrDb[0].Password);
+                System.Diagnostics.Debug.WriteLine(chk);
+
+                return chk;
+                /*customer[0].UserId;
+                customer[0].Username;
+                customer[0].Password;
+                customer[0].ModerationCompleted;
+                customer[0].Salt;*/
+
+
                 /*  foreach(User c in customer)
                    {
                        System.Diagnostics.Debug.WriteLine(c);

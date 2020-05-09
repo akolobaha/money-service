@@ -10,12 +10,15 @@ namespace MoneyService.BuisnessLogic.Auth
         bool IsValidUser(string username, string password);
     }
 
-    public class UserService : IUserService
+    public class UserService 
     {
-        public bool IsValidUser(string username, string password)
+        public bool IsValidUser(string password, string salt, string hash)
         {
-            var testUser = new User("username", "password");
-            return Password.CheckPassword(password, testUser.Salt, testUser.Password);
+            //var testUser = new User("username", "password");
+
+
+
+            return Password.CheckPassword(password, salt, hash);
         }
     }
 }
