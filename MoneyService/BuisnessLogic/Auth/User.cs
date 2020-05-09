@@ -13,6 +13,7 @@ namespace MoneyService.BuisnessLogic.Auth
         
         public User()
         {
+
         }
         
         public User(string username, string password)

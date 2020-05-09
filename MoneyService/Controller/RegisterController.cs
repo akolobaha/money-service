@@ -64,21 +64,30 @@ namespace MoneyService.Controller
         {
             User user = new User(email, password);
 
-            // Сделать запрос к базе и узнать
-
-
-            string sql = "SELECT 'Salt' FROM public.\"Users\" WHERE \"UserId\" = '54';";
+            // connection.Query<Customer>("Select * FROM CUSTOMERS WHERE CustomerName = 'Mark'").ToList();
+            string sql = "SELECT * FROM public.\"Users\"";
 
             using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
             {
                 connection.Open();
-                //var customer = connection.Query<User>(sql, new { Username });
-
-             /*  foreach(User c in customer)
+                //var customer = connection.Query<User>(sql);
+                //var customer = connection.QueryMultiple(sql).Read<string>().FirstOrDefault(); // прочитал первое значение строки
+                //var customer = connection.QueryMultiple(sql).Read<string>();// прочитал 1е значине
+                var customer = connection.Query<UserDb>(sql).ToList();
+                foreach(UserDb c in customer)
                 {
-                    System.Diagnostics.Debug.WriteLine(c);
-                }*/
-                    
+                    System.Diagnostics.Debug.WriteLine(c.UserId);
+                    System.Diagnostics.Debug.WriteLine(c.Username);
+                    System.Diagnostics.Debug.WriteLine(c.Password);
+                    System.Diagnostics.Debug.WriteLine(c.ModerationCompleted);
+                    System.Diagnostics.Debug.WriteLine(c.Salt);
+                }
+                
+                /*  foreach(User c in customer)
+                   {
+                       System.Diagnostics.Debug.WriteLine(c);
+                   }*/
+
 
             }
 
