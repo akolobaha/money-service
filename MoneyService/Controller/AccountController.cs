@@ -43,10 +43,6 @@ namespace MoneyService.Controller
                 }
                 return res;
             }
-                
-            // Вывести акаунты, которые есть у пользователя. Или показать, что аккаунтов пока нет
-            //System.Diagnostics.Debug.WriteLine("df");
-
         }
 
         [Authorize]

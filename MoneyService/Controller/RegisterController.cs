@@ -42,20 +42,31 @@ namespace MoneyService.Controller
         }*/
 
         [HttpGet]
-        public string Index(string username, string password)
+        public bool Index(string username, string password)
         {
             User user = new User(username, password);
 
+            // Проверка email на валидность
+            UserService checkUser = new UserService();
+            if (!checkUser.IsValidEmail(username))
+                return false;
 
-            string sql = "INSERT INTO public.\"Users\" (\"Username\", \"Password\", \"Salt\") VALUES('" + username + "', '" + user.Password + "', '" + user.Salt + "');";
-         
-          
+            
             using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
             {
+                string sql = "INSERT INTO public.\"Users\" (\"Username\", \"Password\", \"Salt\") " +
+                    "VALUES('" + username + "', '" + user.Password + "', '" + user.Salt + "');";
+
+                // Проверка логина на уникальность.
+                string sqlIsUserUnique = $"SELECT * FROM \"Users\" WHERE \"Username\"='{username}';";
                 connection.Open();
+                var uniqueUser = connection.Query<UserDb>(sqlIsUserUnique).ToList();
+                if (uniqueUser.Count() > 0)
+                    return false;
+
                 connection.Execute(sql);
             }
-            return "success";
+            return true;
         }
 
 
@@ -99,6 +110,8 @@ namespace MoneyService.Controller
 
             
         }
+
+        
 
 
     }
