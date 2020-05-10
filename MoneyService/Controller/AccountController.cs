@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using MoneyService.BuisnessLogic.Auth;
-using MoneyService.DB;
 using MoneyService.Model;
 using Npgsql;
 
@@ -47,7 +46,7 @@ namespace MoneyService.Controller
 
         [Authorize]
         [HttpPost("Create")]
-        public string Create ()
+        public bool Create ()
         {
             string username = GetLoginByToken();
             int userId = GetUserIdByLogin(username);
@@ -60,18 +59,18 @@ namespace MoneyService.Controller
                     connection.Open();
                     connection.Execute(sql);
                 }
-                return username + "|" + userId + "| счет успешно открыт";
+                return true;
             }
             
             catch
             {
-                return "Ошибка добавления в базу";
+                return false;
             }
         }
 
         [Authorize]
-        [HttpGet("top-up-balance")]
-        public string TopUpBalance(long accnum, int amount)
+        [HttpGet("refill")]
+        public bool TopUpBalance(long accnum, int amount)
         {
             string username = GetLoginByToken();
             int userId = GetUserIdByLogin(username);
@@ -95,26 +94,27 @@ namespace MoneyService.Controller
                     connection.Execute(sql2);
 
                 }
-                return Account.AccountBalance + "|" + Account.AccountOwnersId + "|" + Account.AccountNumber;
+                return true;
             }
 
             catch
             {
-                return "Ошибка, баланс не пополнен";
+                return false;
             }
 
         }
 
         [Authorize]
         [HttpGet("transfer")]
-        public string Transfer(long accnumA, long accnumB, int amount)
+        public bool Transfer(long accnumA, long accnumB, int amount)
         {
             string username = GetLoginByToken();
             int userId = GetUserIdByLogin(username);
             AccountModel AccountA, AccountB;
 
-            if (amount < 0)
-                return ("Сумма не может быть отрицательной");
+            // Проверка на отрицательную сумму, совпадение аккаунтов
+            if (amount < 0 || accnumA == accnumB)
+                return false;
 
             try
             {
@@ -126,9 +126,10 @@ namespace MoneyService.Controller
                         $"WHERE \"AccountOwnersId\" = {userId} AND \"AccountNumber\" = {accnumA};";
                     var accounta = connection.Query<AccountModel>(sql1).ToList();
                     AccountA = accounta[0];
+
                     // Достаточна ли сумма?
                     if (AccountA.AccountBalance < amount)
-                        return "Недостаточно средств";
+                        return false;
 
                     // Получить баланс аккаунта Б
                     string sql2 = $"SELECT * FROM \"Account\" " +
@@ -150,12 +151,12 @@ namespace MoneyService.Controller
                             $"WHERE \"AccountNumber\" = {accnumA};";
                     connection.Execute(sql4);
                 }
-                return $"Пеервод успешно осуществлен";
+                return true;
             }
             
             catch
             {
-                return "Ошибка. Средства не переведены";
+                return false;
             }
 
         }
