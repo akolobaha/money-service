@@ -27,12 +27,26 @@ namespace MoneyService.Controller
 
 
         [Authorize]
+        [HttpPost]
         public string Index ()
         {
+            using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+            {
+                string username = GetLoginByToken();
+                int userId = GetUserIdByLogin(username);
+                string res = username;
+                string sql = $"SELECT * FROM \"Account\" WHERE \"AccountOwnersId\" = 58;";
+                var accounts = connection.Query<AccountModel>(sql).ToList();
+                foreach (AccountModel acc in accounts)
+                {
+                    res += $"<br>счет: {acc.AccountNumber} | остаток:  + {acc.AccountBalance}";
+                }
+                return res;
+            }
+                
             // Вывести акаунты, которые есть у пользователя. Или показать, что аккаунтов пока нет
             //System.Diagnostics.Debug.WriteLine("df");
-        
-            return "userName";
+
         }
 
         [Authorize]
@@ -42,29 +56,6 @@ namespace MoneyService.Controller
             string username = GetLoginByToken();
             int userId = GetUserIdByLogin(username);
 
-            // Получить id из логина
-         /*   using (ApplicationContext db = new ApplicationContext())
-            {
-                var users = db.Users.ToList();
-                System.Diagnostics.Debug.WriteLine(users[0].Username);
-                foreach (UserModel u in users)
-                {
-                    if (u.Username == userLogin)
-                        userId = u.UserId;
-                }
-                // Создать запись в бд
-                if (userId != 0)
-                {
-                    AccountModel account = new AccountModel { AccountOwnersId = userId };
-                    db.Account.Add(account);
-                    db.SaveChanges();
-
-                    return "Successfuly created";
-                }
-
-            }*/
-
-            //INSERT INTO "Account"("AccountOwnersId") VALUES(57);
             try
             {
                 using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
@@ -80,22 +71,107 @@ namespace MoneyService.Controller
             {
                 return "Ошибка добавления в базу";
             }
+        }
+
+        [Authorize]
+        [HttpGet("top-up-balance")]
+        public string TopUpBalance(long accnum, int amount)
+        {
+            string username = GetLoginByToken();
+            int userId = GetUserIdByLogin(username);
+            AccountModel Account;
 
 
+            try
+            {
+                using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+                {
+                    // Получить текущий баланс
+                    string sql1 = $"SELECT * FROM \"Account\" WHERE \"AccountOwnersId\" = {userId} AND \"AccountNumber\" = {accnum};";
+                    var account = connection.Query<AccountModel>(sql1).ToList();
+                    Account = account[0];
+                    Account.AccountBalance += amount;
 
 
+                    string sql2 = $"" +
+                        $"UPDATE \"Account\" SET \"AccountBalance\" = {Account.AccountBalance} " +
+                        $"WHERE \"AccountOwnersId\" = {userId} AND \"AccountNumber\" = {accnum};";
+                    connection.Execute(sql2);
+
+                }
+                return Account.AccountBalance + "|" + Account.AccountOwnersId + "|" + Account.AccountNumber;
+            }
+
+            catch
+            {
+                return "Ошибка, баланс не пополнен";
+            }
 
         }
 
         [Authorize]
-        public string GetLoginByToken()
+        [HttpGet("transfer")]
+        public string Transfer(long accnumA, long accnumB, int amount)
+        {
+            string username = GetLoginByToken();
+            int userId = GetUserIdByLogin(username);
+            AccountModel AccountA, AccountB;
+
+            if (amount < 0)
+                return ("Сумма не может быть отрицательной");
+
+            try
+            {
+                using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
+                {
+                    // Получить аккаунтА
+                    string sql1 =
+                        $"SELECT * FROM \"Account\" " +
+                        $"WHERE \"AccountOwnersId\" = {userId} AND \"AccountNumber\" = {accnumA};";
+                    var accounta = connection.Query<AccountModel>(sql1).ToList();
+                    AccountA = accounta[0];
+                    // Достаточна ли сумма?
+                    if (AccountA.AccountBalance < amount)
+                        return "Недостаточно средств";
+
+                    // Получить баланс аккаунта Б
+                    string sql2 = $"SELECT * FROM \"Account\" " +
+                                    $"WHERE \"AccountNumber\" = {accnumB};";
+                    var accountb = connection.Query<AccountModel>(sql1).ToList();
+                    AccountB = accountb[0];
+
+                    // Прибавить к аккаунта Б необходимую сумму
+                    AccountB.AccountBalance += amount;
+                    string sql3 = $"" +
+                            $"UPDATE \"Account\" SET \"AccountBalance\" = {AccountB.AccountBalance} " +
+                            $"WHERE \"AccountNumber\" = {accnumB};";
+                    connection.Execute(sql3);
+
+                    // Снять с аккаунта А переведенную сумму
+                    AccountA.AccountBalance -= amount;
+                    string sql4 = $"" +
+                            $"UPDATE \"Account\" SET \"AccountBalance\" = {AccountA.AccountBalance} " +
+                            $"WHERE \"AccountNumber\" = {accnumA};";
+                    connection.Execute(sql4);
+                }
+                return $"Пеервод успешно осуществлен";
+            }
+            
+            catch
+            {
+                return "Ошибка. Средства не переведены";
+            }
+
+        }
+
+        private string GetLoginByToken()
         {
             var identity = HttpContext.User.Identity as ClaimsIdentity;
             IList<Claim> claim = identity.Claims.ToList();
             var username = claim[0].Value;
             return username;
         }
-        public int GetUserIdByLogin(string username)
+        private int GetUserIdByLogin(string username)
         {
             using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
             {
@@ -103,96 +179,8 @@ namespace MoneyService.Controller
                 connection.Open();
                 var user = connection.Query<UserDb>(sql).ToList();
                 int userId = Int32.Parse(user[0].UserId);
-                return userId; 
+                return userId;
             }
-        }
-
-
-
-        [Authorize]
-        [HttpGet("top-up-balance")]
-        public string TopUpBalance(long accnum, int amount)
-        {
-            var identity = HttpContext.User.Identity as ClaimsIdentity;
-            IList<Claim> claim = identity.Claims.ToList();
-            var username = claim[0].Value;
-
-            int userId = 0;
-
-            // Получить id из логина
-            using (ApplicationContext db = new ApplicationContext())
-            {
-                var users = db.Users.ToList();
-                foreach (UserModel u in users)
-                {
-                    if (u.Username == username)
-                        userId = u.UserId;
-                }
-
-                if (userId != 0)
-                {
-                    var accounts = db.Account.ToList();
-                    foreach(AccountModel a in accounts)
-                    {
-                        if (a.AccountNumber == accnum && a.AccountOwnersId == userId)
-                        {
-                            a.AccountBalance += amount;
-                            db.SaveChanges();
-                            return ($"Баланс счета {a.AccountNumber} пополнен на {amount}");
-
-                        }
-                            
-                    }
-                    
-                }
-            }
-
-            return ("Ошибка. Баланс не был пополнен");
-        }
-
-        [Authorize]
-        [HttpGet("transfer")]
-        public string Transfer(long accnumA, long accnumB, int amount)
-        {
-            var identity = HttpContext.User.Identity as ClaimsIdentity;
-            IList<Claim> claim = identity.Claims.ToList();
-            var userLogin = claim[0].Value;
-
-            int userId = 0;
-
-            // Получить id из логина
-            using (ApplicationContext db = new ApplicationContext())
-            {
-                var users = db.Users.ToList();
-                foreach (UserModel u in users)
-                {
-                    if (u.Username == userLogin)
-                        userId = u.UserId;
-                }
-
-                if (userId != 0)
-                {
-                    var accounts = db.Account.ToList();
-                    foreach (AccountModel a in accounts)
-                    {
-                        if ((a.AccountNumber == accnumA && a.AccountOwnersId == userId) && a.AccountBalance >= amount)
-                            foreach (AccountModel b in accounts)
-                            {
-                                if (b.AccountNumber == accnumB)
-                                {
-                                    a.AccountBalance -= amount;
-                                    b.AccountBalance += amount;
-                                    db.SaveChanges();
-                                    return ("Перевод выполнен успешно");
-                                }
-                            }
-                    }
-                }
-                else
-                    return ("Пользователь не найден");
-            }
-
-            return ("Ошибка. Перевод не выполнен.");
         }
 
     }
