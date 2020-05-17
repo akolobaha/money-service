@@ -25,21 +25,29 @@ namespace MoneyService.Controller
         }
 
 
+        // Пользователь и его аккаунты
         [Authorize]
-        [HttpPost]
+        [HttpGet]
         public string Index ()
         {
             using (var connection = new NpgsqlConnection(_config["ConnectionStrings:Users"]))
             {
                 string username = GetLoginByToken();
                 int userId = GetUserIdByLogin(username);
-                string res = username;
-                string sql = $"SELECT * FROM \"Account\" WHERE \"AccountOwnersId\" = 58;";
+
+               
+                string res = $" {{ \"username\" : \"{ username}\", \"accounts\" : {{ ";
+
+
+                string sql = $"SELECT * FROM \"Account\" WHERE \"AccountOwnersId\" = {userId};";
                 var accounts = connection.Query<AccountModel>(sql).ToList();
                 foreach (AccountModel acc in accounts)
                 {
-                    res += $"<br>счет: {acc.AccountNumber} | остаток:  + {acc.AccountBalance}";
+
+                    res += $" \"{acc.AccountNumber}\" : {acc.AccountBalance},";
                 }
+
+                res += "}}";
                 return res;
             }
         }
