@@ -24,8 +24,7 @@ namespace MoneyService.Controller
             _config = config;
         }
 
-
-        // Пользователь и его аккаунты
+        // Пользователь, список счетов и остатков.
         [Authorize]
         [HttpGet]
         public string Index ()
@@ -34,20 +33,19 @@ namespace MoneyService.Controller
             {
                 string username = GetLoginByToken();
                 int userId = GetUserIdByLogin(username);
-
                
-                string res = $" {{ \"username\" : \"{ username}\", \"accounts\" : {{ ";
-
+                string res = $" {{ \"username\" : \"{ username}\", \"accounts\" : [";
 
                 string sql = $"SELECT * FROM \"Account\" WHERE \"AccountOwnersId\" = {userId};";
                 var accounts = connection.Query<AccountModel>(sql).ToList();
                 foreach (AccountModel acc in accounts)
                 {
 
-                    res += $" \"{acc.AccountNumber}\" : {acc.AccountBalance},";
+                    res += $"{{\"number\": {acc.AccountNumber}, \"balance\" : {acc.AccountBalance}}},";
                 }
 
-                res += "}}";
+                res = res.TrimEnd(','); // удаляем лишнюю запятую
+                res += "]}";
                 return res;
             }
         }
